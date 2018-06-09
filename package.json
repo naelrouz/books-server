@@ -1,0 +1,52 @@
+{
+  "name": "rpslr-game-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "start": "rimraf ./dist && babel -d ./dist ./src -s && node dist/index.js",
+    "dev":
+      "NODE_ENV=development nodemon --exec babel-node ./src/index.js --watch",
+    "devt":
+      "NODE_ENV=development devtool --exec babel-node ./src/index.js --watch",
+    "bl": ""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/naelrouz/RPSLS.git"
+  },
+  "author": "Ivan Novoselov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/naelrouz/RPSLS/issues"
+  },
+  "homepage": "https://github.com/naelrouz/RPSLS#readme",
+  "dependencies": {
+    "colors": "^1.2.5",
+    "config": "^1.30.0",
+    "koa": "^2.5.1",
+    "koa-body": "^2.5.0",
+    "koa-favicon": "^2.0.1",
+    "koa-logger": "^3.1.0",
+    "koa-router": "^7.4.0",
+    "koa-static": "^4.0.3",
+    "pug": "^2.0.3",
+    "rimraf": "^2.6.2",
+    "socket.io": "^2.1.1",
+    "uniqid": "^4.1.1"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-stage-3": "^6.24.1",
+    "devtool": "^2.3.1",
+    "eslint": "^4.18.2",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-config-prettier": "^2.9.0",
+    "eslint-plugin-import": "^2.9.0",
+    "jest": "^22.4.3",
+    "nodemon": "^1.17.1"
+  }
+}
