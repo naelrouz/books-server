@@ -6,10 +6,8 @@
   "scripts": {
     "test": "jest",
     "start": "rimraf ./dist && babel -d ./dist ./src -s && node dist/index.js",
-    "dev":
-      "NODE_ENV=development nodemon --exec babel-node ./src/index.js --watch",
-    "devt":
-      "NODE_ENV=development devtool --exec babel-node ./src/index.js --watch",
+    "dev": "NODE_ENV=development nodemon --exec babel-node ./src/index.js --watch",
+    "devt": "NODE_ENV=development devtool --exec babel-node ./src/index.js --watch",
     "bl": ""
   },
   "repository": {
@@ -31,8 +29,12 @@
     "koa-logger": "^3.1.0",
     "koa-router": "^7.4.0",
     "koa-static": "^4.0.3",
+    "mysql": "^2.15.0",
+    "mysql2": "^1.5.3",
     "pug": "^2.0.3",
     "rimraf": "^2.6.2",
+    "sequelize": "^4.37.10",
+    "sequelize-cli": "^4.0.0",
     "socket.io": "^2.1.1",
     "uniqid": "^4.1.1"
   },
