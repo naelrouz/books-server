@@ -48,28 +48,43 @@ io.on('connection', socket => {
         }
       );
 
-      socket.emit('ADD_BOOK_RES', { ok: true, errors: null });
+      socket.emit('ADD_BOOK_RES', {
+        ok: true,
+        errors: null
+      });
     } catch (error) {
-      socket.emit('ADD_BOOK_RES', { ok: false, errors: error.message });
+      socket.emit('ADD_BOOK_RES', {
+        ok: false,
+        errors: error.message
+      });
     }
   });
   // Get one book
   socket.on('ONE_BOOK', async ({ id }) => {
-    const oneBook = await models.sequelize.query(
-      'SELECT books.id, books.title, books.date, books.author_id, books.description, authors.first_name, authors.last_name FROM books  JOIN authors WHERE books.id = :id AND books.author_id = authors.id',
-      {
-        replacements: { id },
-        type: models.sequelize.QueryTypes.SELECT,
-        model: models.Books,
-        raw: true
-      }
-    );
-
-    socket.emit('ONE_BOOK_RES', {
-      ok: true,
-      errors: null,
-      oneBook: oneBook[0]
-    });
+    try {
+      const oneBook = await models.sequelize.query(
+        'SELECT books.id, books.title, books.date, books.author_id, books.description, books.image, authors.first_name, authors.last_name FROM books  JOIN authors WHERE books.id = :id AND books.author_id = authors.id',
+        {
+          replacements: {
+            id
+          },
+          type: models.sequelize.QueryTypes.SELECT,
+          model: models.Books,
+          raw: true
+        }
+      );
+      socket.emit('ONE_BOOK', {
+        ok: true,
+        errors: null,
+        oneBook: oneBook[0]
+      });
+    } catch (error) {
+      socket.emit('ONE_BOOK', {
+        ok: false,
+        errors: error.message,
+        oneBook: null
+      });
+    }
   });
 
   // Update book
@@ -102,18 +117,22 @@ io.on('connection', socket => {
 
   socket.on('BOOKS', async payload => {
     try {
+      const orderBy = payload.orderBy ? payload.orderBy : null;
+      const groupBy = payload.groupBy ? payload.groupBy : null;
+      const like = payload.like ? `%${payload.like}%` : null;
+
       const bookRowsCountRes = await models.sequelize.query(
-        'SELECT COUNT(title) FROM books',
+        `SELECT COUNT(title) FROM books ${
+          like ? 'WHERE title LIKE :like' : ''
+        }`,
         {
+          replacements: { like },
           type: models.sequelize.QueryTypes.SELECT,
           model: models.Books,
           raw: true
         }
       );
       const bookRowsCount = bookRowsCountRes[0]['COUNT(title)'];
-
-      const orderBy = payload.orderBy ? payload.orderBy : null;
-      const groupBy = payload.groupBy ? payload.groupBy : null;
 
       const curPage = parseInt(
         payload.curPage && payload.curPage > 0 ? payload.curPage : 1,
@@ -130,15 +149,16 @@ io.on('connection', socket => {
       console.log('limit:', limit);
 
       const books = await models.sequelize.query(
-        `SELECT books.id, books.title, books.date, books.description, books.image, authors.first_name, authors.last_name FROM books JOIN authors WHERE books.author_id = authors.id ${
-          groupBy ? 'GROUP BY :groupBy' : ''
-        } ${
+        `SELECT books.id, books.title, books.date, books.description, books.image, authors.first_name, authors.last_name FROM books JOIN authors WHERE ${
+          like ? 'books.title LIKE :like AND' : ''
+        }  books.author_id = authors.id ${groupBy ? 'GROUP BY :groupBy' : ''} ${
           orderBy ? 'ORDER BY :orderBy' : 'ORDER BY id DESC'
         }  LIMIT :limit OFFSET :offset`,
         {
           replacements: {
             orderBy,
             groupBy,
+            like,
             limit,
             offset
           },
@@ -174,6 +194,45 @@ io.on('connection', socket => {
   });
 
   // Book search
+  // Quick search shows the first 5 elements
+  // socket.on('SEARCH_BOOKS', async payload => {
+  //   try {
+  //     const { chunk } = payload;
+
+  //     console.log('chunk:', chunk);
+
+  //     const books = await models.sequelize.query(
+  //       `SELECT books.id, books.title, books.date, books.description, books.image, authors.first_name, authors.last_name FROM books JOIN authors WHERE   AND books.author_id = authors.id    LIMIT 5 `,
+  //       {
+  //         replacements: {
+  //           like
+  //         },
+  //         type: models.sequelize.QueryTypes.SELECT,
+  //         model: models.Books,
+  //         raw: true
+  //       }
+  //     );
+
+  //     // const books = await models.Book.findAll(
+  //     //   { order: [['title', 'DESC']], limit, offset },
+  //     //   { raw: true }
+  //     // );
+
+  //     console.log('books: ', books);
+
+  //     socket.emit('SEARCH_BOOKS_RES', {
+  //       ok: true,
+  //       errors: null,
+  //       books
+  //     });
+  //   } catch (error) {
+  //     socket.emit('SEARCH_BOOKS_RES', {
+  //       ok: false,
+  //       errors: error.message,
+  //       books: null
+  //     });
+  //   }
+  // });
 
   // Listen on disconnect
   socket.on('disconnect', () => {
