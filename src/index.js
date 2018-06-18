@@ -4,6 +4,8 @@ import cfg from 'config';
 import colors from 'colors';
 import http from 'http';
 import socketIO from 'socket.io';
+import fs from 'fs';
+import path from 'path';
 
 import middlewares from './middlewares';
 
@@ -73,13 +75,13 @@ io.on('connection', socket => {
           raw: true
         }
       );
-      socket.emit('ONE_BOOK', {
+      socket.emit('ONE_BOOK_RES', {
         ok: true,
         errors: null,
         oneBook: oneBook[0]
       });
     } catch (error) {
-      socket.emit('ONE_BOOK', {
+      socket.emit('ONE_BOOK_RES', {
         ok: false,
         errors: error.message,
         oneBook: null
@@ -113,6 +115,62 @@ io.on('connection', socket => {
     }
   });
 
+  // Upload image
+
+  // init socket io and whatever
+  const files = {};
+  const struct = {
+    name: null,
+    type: null,
+    size: 0,
+    data: [],
+    slice: 0
+  };
+
+  socket.on('slice upload', data => {
+    try {
+      // console.log('slice upload');
+
+      if (!files[data.name]) {
+        files[data.name] = Object.assign({}, struct, data);
+        files[data.name].data = [];
+      }
+
+      // convert the ArrayBuffer to Buffer
+      // data.data = new Buffer(new Uint8Array(data.data));
+      data.data = Buffer.from(new Uint8Array(data.data));
+
+      // save the data
+      files[data.name].data.push(data.data);
+      files[data.name].slice += 1; // ++
+
+      if (files[data.name].slice * 100000 >= files[data.name].size) {
+        const fileBuffer = Buffer.concat(files[data.name].data);
+
+        const pathToImageFolder = path.join('/static/img', data.name);
+        console.log('pathToImageFolder:', pathToImageFolder);
+
+        fs.write(pathToImageFolder, fileBuffer, err => {
+          delete files[data.name];
+          if (err) {
+            return socket.emit('upload error');
+          }
+          socket.emit('end upload');
+          return null;
+        });
+        // socket.emit('end upload');
+      } else {
+        // console.log('request slice upload');
+
+        socket.emit('request slice upload', {
+          currentSlice: files[data.name].slice
+        });
+      }
+    } catch (error) {
+      console.log('slice upload error:', error);
+    }
+  });
+
   // Books list
 
   socket.on('BOOKS', async payload => {
@@ -132,6 +190,7 @@ io.on('connection', socket => {
           raw: true
         }
       );
+
       const bookRowsCount = bookRowsCountRes[0]['COUNT(title)'];
 
       const curPage = parseInt(
@@ -139,7 +198,7 @@ io.on('connection', socket => {
         10
       );
       const limit = parseInt(
-        payload.perPage && payload.perPage > 0 ? payload.perPage : 20,
+        payload.perPage && payload.perPage > 0 ? payload.perPage : 5,
         10
       );
       const pagesCount = Math.floor(bookRowsCount / limit);
@@ -148,16 +207,29 @@ io.on('connection', socket => {
       console.log('pagesCount:', pagesCount);
       console.log('limit:', limit);
 
+      const groupByQ = () =>
+        groupBy
+          ? `GROUP BY ${groupBy === 'author' ? 'books.author_id' : groupBy}`
+          : '';
+
+      const orderByQ = () => {
+        if (!orderBy) {
+          return 'ORDER BY id DESC';
+        }
+        if (orderBy === 'author') {
+          return 'ORDER BY authors.last_name, authors.first_name';
+        }
+        return `ORDER BY ${orderBy}`;
+      };
+
       const books = await models.sequelize.query(
         `SELECT books.id, books.title, books.date, books.description, books.image, authors.first_name, authors.last_name FROM books JOIN authors WHERE ${
           like ? 'books.title LIKE :like AND' : ''
-        }  books.author_id = authors.id ${groupBy ? 'GROUP BY :groupBy' : ''} ${
-          orderBy ? 'ORDER BY :orderBy' : 'ORDER BY id DESC'
-        }  LIMIT :limit OFFSET :offset`,
+        }  books.author_id = authors.id ${groupByQ()} ${orderByQ()}  LIMIT :limit OFFSET :offset`,
         {
           replacements: {
-            orderBy,
-            groupBy,
+            // orderBy,
+            // groupBy,
             like,
             limit,
             offset
@@ -192,47 +264,6 @@ io.on('connection', socket => {
       });
     }
   });
-
-  // Book search
-  // Quick search shows the first 5 elements
-  // socket.on('SEARCH_BOOKS', async payload => {
-  //   try {
-  //     const { chunk } = payload;
-
-  //     console.log('chunk:', chunk);
-
-  //     const books = await models.sequelize.query(
-  //       `SELECT books.id, books.title, books.date, books.description, books.image, authors.first_name, authors.last_name FROM books JOIN authors WHERE   AND books.author_id = authors.id    LIMIT 5 `,
-  //       {
-  //         replacements: {
-  //           like
-  //         },
-  //         type: models.sequelize.QueryTypes.SELECT,
-  //         model: models.Books,
-  //         raw: true
-  //       }
-  //     );
-
-  //     // const books = await models.Book.findAll(
-  //     //   { order: [['title', 'DESC']], limit, offset },
-  //     //   { raw: true }
-  //     // );
-
-  //     console.log('books: ', books);
-
-  //     socket.emit('SEARCH_BOOKS_RES', {
-  //       ok: true,
-  //       errors: null,
-  //       books
-  //     });
-  //   } catch (error) {
-  //     socket.emit('SEARCH_BOOKS_RES', {
-  //       ok: false,
-  //       errors: error.message,
-  //       books: null
-  //     });
-  //   }
-  // });
 
   // Listen on disconnect
   socket.on('disconnect', () => {
